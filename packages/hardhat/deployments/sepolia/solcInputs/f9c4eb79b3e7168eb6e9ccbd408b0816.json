@@ -1,0 +1,39 @@
+{
+  "language": "Solidity",
+  "sources": {
+    "contracts/ExampleExternalContract.sol": {
+      "content": "// SPDX-License-Identifier: MIT\npragma solidity 0.8.20; //Do not change the solidity version as it negatively impacts submission grading\n\ncontract ExampleExternalContract {\n    bool public completed;\n\n    function complete() public payable {\n        completed = true;\n    }\n}\n"
+    },
+    "contracts/Staker.sol": {
+      "content": "// SPDX-License-Identifier: MIT\npragma solidity 0.8.20; //Do not change the solidity version as it negatively impacts submission grading\n\nimport \"./ExampleExternalContract.sol\";\n\ncontract Staker {\n    ExampleExternalContract public exampleExternalContract;\n    uint256 public deadline;\n\n    constructor(address exampleExternalContractAddress) {\n      exampleExternalContract = ExampleExternalContract(exampleExternalContractAddress);\n      deadline = block.timestamp + 72 hours;\n    }\n\n    // Collect funds in a payable `stake()` function and track individual `balances` with a mapping:\n    // (Make sure to add a `Stake(address,uint256)` event and emit it for the frontend `All Stakings` tab to display)\n    mapping (address => uint256) public balances;\n    uint256 public constant threshold = 1 ether;\n    bool public openForWithdraw = false;\n    bool public executed = false;\n\n    event Stake(address indexed sender, uint256 amount);\n\n    function stake() public payable {\n      require(block.timestamp < deadline, \"Staking period is over!\");\n      \n      balances[msg.sender] += msg.value;\n\n      emit Stake(msg.sender, msg.value);\n    }\n\n    function execute() public {\n      require(block.timestamp >= deadline, \"Deadline not yet reached\");\n      require(!executed, \"Already executed\");\n\n      if (address(this).balance >= threshold) {\n        executed = true;\n        exampleExternalContract.complete{value: address(this).balance}();\n      } else {\n        openForWithdraw = true;\n      }\n    }\n\n    function timeLeft() public view returns (uint256) {\n      if (block.timestamp >= deadline) {\n        return 0;\n      }\n      return deadline - block.timestamp;\n    }\n\n    function withdraw() public {\n        require(block.timestamp >= deadline, \"Deadline not yet reached\");\n        require(address(this).balance < threshold, \"Threshold was met\");\n        \n        uint256 userBalance = balances[msg.sender];\n        require(userBalance > 0, \"Nothing to withdraw\");\n        \n        balances[msg.sender] = 0;\n        (bool sent, ) = msg.sender.call{value: userBalance}(\"\");\n        require(sent, \"Withdraw failed\");\n    }\n\n    // https://solidity-by-example.org/sending-ether/\n    // Function to receive Ether. msg.data must be empty\n    // If you want people to be able to send ETH to your contract, use this \n    receive() external payable {\n      stake();\n    }\n}\n"
+    }
+  },
+  "settings": {
+    "optimizer": {
+      "enabled": true,
+      "runs": 200
+    },
+    "evmVersion": "paris",
+    "outputSelection": {
+      "*": {
+        "*": [
+          "abi",
+          "evm.bytecode",
+          "evm.deployedBytecode",
+          "evm.methodIdentifiers",
+          "metadata",
+          "devdoc",
+          "userdoc",
+          "storageLayout",
+          "evm.gasEstimates"
+        ],
+        "": [
+          "ast"
+        ]
+      }
+    },
+    "metadata": {
+      "useLiteralContent": true
+    }
+  }
+}
